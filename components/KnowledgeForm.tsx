@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import MarkdownPreview from '@/components/MarkdownPreview';
+import { KnowledgeItem } from '@/lib/types';
 
 const formSchema = z.object({
   title: z.string()
@@ -30,7 +31,12 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export default function KnowledgeForm() {
+interface KnowledgeFormProps {
+  mode?: 'create' | 'edit';
+  initialData?: KnowledgeItem;
+}
+
+export default function KnowledgeForm({ mode = 'create', initialData }: KnowledgeFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isPreview, setIsPreview] = useState(false);
@@ -44,10 +50,10 @@ export default function KnowledgeForm() {
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      tags: '',
-      content: '',
+      title: initialData?.title || '',
+      description: initialData?.description || '',
+      tags: initialData?.tags?.join(', ') || '',
+      content: initialData?.content || '',
     },
   });
 
@@ -57,14 +63,20 @@ export default function KnowledgeForm() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/knowledge', {
-        method: 'POST',
+      const endpoint = mode === 'edit' 
+        ? `/api/knowledge/${initialData?.slug}`
+        : '/api/knowledge';
+      
+      const method = mode === 'edit' ? 'PUT' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...data,
-          created: new Date().toISOString(),
+          created: initialData?.created || new Date().toISOString(),
         }),
       });
 
@@ -76,8 +88,8 @@ export default function KnowledgeForm() {
       const { slug } = await response.json();
 
       toast({
-        title: '投稿完了',
-        description: 'ナレッジを投稿しました',
+        title: mode === 'edit' ? '更新完了' : '投稿完了',
+        description: mode === 'edit' ? 'ナレッジを更新しました' : 'ナレッジを投稿しました',
       });
 
       // 一覧ページに戻る前に少し待機（トーストメッセージを見せるため）
@@ -191,7 +203,7 @@ export default function KnowledgeForm() {
           {isSubmitting && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           )}
-          投稿する
+          {mode === 'edit' ? '更新する' : '投稿する'}
         </Button>
       </div>
     </form>
