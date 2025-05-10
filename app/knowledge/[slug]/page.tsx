@@ -25,8 +25,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 // 静的パスの生成
 export async function generateStaticParams() {
-  const items = await getAllKnowledgeItems();
-  return items.map((item) => ({
+  const knowledgeItems = await getAllKnowledgeItems();
+  return knowledgeItems.map((item) => ({
     slug: item.slug,
   }));
 }
