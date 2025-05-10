@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { BookOpen, ChevronRight } from 'lucide-react';
 import { KnowledgeItem } from '@/lib/types';

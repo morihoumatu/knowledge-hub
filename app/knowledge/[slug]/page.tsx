@@ -1,13 +1,15 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Markdown from '@/components/Markdown';
 import Breadcrumb from '@/components/Breadcrumb';
-import TagList from '@/components/TagList';
-import RelatedKnowledge from '@/components/RelatedKnowledge';
 import Header from '@/components/Header';
+import dynamic from 'next/dynamic';
 import { getKnowledgeBySlug, getAllKnowledgeItems } from '@/lib/knowledge';
 
-// 動的なメタデータの生成
+// Import the client component dynamically
+const KnowledgeArticle = dynamic(() => import('@/components/KnowledgeArticle'), {
+  ssr: true
+});
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const knowledge = await getKnowledgeBySlug(decodeURIComponent(params.slug));
   
@@ -23,7 +25,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-// 静的パスの生成
 export async function generateStaticParams() {
   const knowledgeItems = await getAllKnowledgeItems();
   return knowledgeItems.map((item) => ({
@@ -38,7 +39,6 @@ export default async function KnowledgePage({ params }: { params: { slug: string
     notFound();
   }
   
-  // 関連ナレッジの取得（同じタグを持つ他のナレッジ）
   const allItems = await getAllKnowledgeItems();
   const relatedItems = allItems
     .filter(item => 
@@ -59,39 +59,10 @@ export default async function KnowledgePage({ params }: { params: { slug: string
           ]} 
         />
         
-        <article className="mt-6 bg-card p-6 rounded-lg shadow-sm">
-          <header className="mb-6">
-            <h1 className="text-3xl font-bold text-card-foreground">{knowledge.title}</h1>
-            
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 gap-2">
-              <div className="text-muted-foreground">
-                作成日: {new Date(knowledge.created).toLocaleDateString('ja-JP')}
-                {knowledge.updated && ` (更新: ${new Date(knowledge.updated).toLocaleDateString('ja-JP')})`}
-              </div>
-              
-              {knowledge.tags && knowledge.tags.length > 0 && (
-                <TagList tags={knowledge.tags} />
-              )}
-            </div>
-            
-            {knowledge.description && (
-              <div className="mt-4 p-4 bg-muted rounded-md text-muted-foreground">
-                {knowledge.description}
-              </div>
-            )}
-          </header>
-          
-          <div className="prose prose-blue dark:prose-invert max-w-none">
-            <Markdown content={knowledge.content} />
-          </div>
-        </article>
-        
-        {relatedItems.length > 0 && (
-          <div className="mt-10">
-            <h2 className="text-2xl font-bold mb-4">関連ナレッジ</h2>
-            <RelatedKnowledge items={relatedItems} />
-          </div>
-        )}
+        <KnowledgeArticle 
+          knowledge={knowledge}
+          relatedItems={relatedItems}
+        />
       </main>
     </div>
   );

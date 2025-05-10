@@ -121,6 +121,7 @@ export async function getAllKnowledgeItems(): Promise<KnowledgeItem[]> {
 
 // スラッグからナレッジアイテムを取得する関数
 export async function getKnowledgeBySlug(slug: string): Promise<KnowledgeItem | null> {
-  const item = sampleKnowledge.find(item => item.slug === slug);
+  const decodedSlug = decodeURIComponent(slug);
+  const item = sampleKnowledge.find(item => item.slug === decodedSlug);
   return item || null;
 }
