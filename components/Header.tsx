@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { BookOpen, Search, Menu, X } from 'lucide-react';
+import { BookOpen, PlusCircle, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 export default function Header() {
   const pathname = usePathname();
@@ -56,11 +57,22 @@ export default function Header() {
           >
             使い方
           </Link>
+          <Link href="/create">
+            <Button size="sm">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              投稿する
+            </Button>
+          </Link>
           <ThemeToggle />
         </nav>
 
         {/* モバイルメニューボタン */}
         <div className="flex md:hidden items-center gap-4">
+          <Link href="/create">
+            <Button size="sm" variant="ghost">
+              <PlusCircle className="h-4 w-4" />
+            </Button>
+          </Link>
           <ThemeToggle />
           <button
             onClick={toggleMenu}
