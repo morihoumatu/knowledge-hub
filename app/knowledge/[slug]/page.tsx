@@ -9,7 +9,7 @@ import { getKnowledgeBySlug, getAllKnowledgeItems } from '@/lib/knowledge';
 
 // 動的なメタデータの生成
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const knowledge = await getKnowledgeBySlug(params.slug);
+  const knowledge = await getKnowledgeBySlug(decodeURIComponent(params.slug));
   
   if (!knowledge) {
     return {
@@ -27,12 +27,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export async function generateStaticParams() {
   const knowledgeItems = await getAllKnowledgeItems();
   return knowledgeItems.map((item) => ({
-    slug: item.slug,
+    slug: encodeURIComponent(item.slug),
   }));
 }
 
 export default async function KnowledgePage({ params }: { params: { slug: string } }) {
-  const knowledge = await getKnowledgeBySlug(params.slug);
+  const knowledge = await getKnowledgeBySlug(decodeURIComponent(params.slug));
   
   if (!knowledge) {
     notFound();
@@ -55,7 +55,7 @@ export default async function KnowledgePage({ params }: { params: { slug: string
         <Breadcrumb 
           items={[
             { name: 'ホーム', href: '/' },
-            { name: knowledge.title, href: `/knowledge/${knowledge.slug}` },
+            { name: knowledge.title, href: `/knowledge/${encodeURIComponent(knowledge.slug)}` },
           ]} 
         />
         
