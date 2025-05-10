@@ -1,42 +1,46 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import KnowledgeList from '@/components/KnowledgeList';
 import SearchBar from '@/components/SearchBar';
 import TagFilter from '@/components/TagFilter';
-import { getAllKnowledgeItems } from '@/lib/knowledge';
+import { useToast } from '@/hooks/use-toast';
+import { KnowledgeItem } from '@/lib/types';
 
-export default function ClientHome() {
+interface ClientHomeProps {
+  initialKnowledgeItems: KnowledgeItem[];
+}
+
+export default function ClientHome({ initialKnowledgeItems }: ClientHomeProps) {
+  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  
   // 状態管理
-  const [knowledgeItems, setKnowledgeItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [knowledgeItems] = useState(initialKnowledgeItems);
+  const [filteredItems, setFilteredItems] = useState(initialKnowledgeItems);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [availableTags, setAvailableTags] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<{ name: string; count: number }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [useRegex, setUseRegex] = useState(false);
 
-  // データ取得
+  // 初期化処理
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const items = await getAllKnowledgeItems();
-        setKnowledgeItems(items);
-        setFilteredItems(items);
-        
-        // 全タグを抽出して重複を排除
-        const tags = items.flatMap(item => item.tags || []);
-        const uniqueTags = [...new Set(tags)].sort();
-        setAvailableTags(uniqueTags.map(tag => ({ name: tag, count: tags.filter(t => t === tag).length })));
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('ナレッジデータの取得に失敗しました:', error);
-        setIsLoading(false);
-      }
-    };
+    // URLからタグを取得
+    const tagParam = searchParams.get('tag');
+    if (tagParam) {
+      setSelectedTags([tagParam]);
+    }
     
-    fetchData();
-  }, []);
+    // 全タグを抽出して重複を排除
+    const tags = knowledgeItems.flatMap(item => item.tags || []);
+    const uniqueTags = [...new Set(tags)].sort();
+    setAvailableTags(uniqueTags.map(tag => ({ 
+      name: tag, 
+      count: tags.filter(t => t === tag).length 
+    })));
+  }, [searchParams, knowledgeItems]);
 
   // 検索とフィルタリング
   useEffect(() => {
@@ -46,12 +50,25 @@ export default function ClientHome() {
     
     // 検索語でフィルタリング
     if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      results = results.filter(item => 
-        item.title.toLowerCase().includes(lowerSearchTerm) || 
-        item.description?.toLowerCase().includes(lowerSearchTerm) ||
-        item.content?.toLowerCase().includes(lowerSearchTerm)
-      );
+      if (useRegex) {
+        try {
+          const regex = new RegExp(searchTerm, 'i');
+          results = results.filter(item => 
+            regex.test(item.title) || 
+            regex.test(item.description || '') ||
+            regex.test(item.content || '')
+          );
+        } catch (error) {
+          console.error('正規表現エラー:', error);
+        }
+      } else {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        results = results.filter(item => 
+          item.title.toLowerCase().includes(lowerSearchTerm) || 
+          item.description?.toLowerCase().includes(lowerSearchTerm) ||
+          item.content?.toLowerCase().includes(lowerSearchTerm)
+        );
+      }
     }
     
     // タグでフィルタリング
@@ -62,15 +79,16 @@ export default function ClientHome() {
     }
     
     setFilteredItems(results);
-  }, [searchTerm, selectedTags, knowledgeItems]);
+  }, [searchTerm, selectedTags, knowledgeItems, useRegex]);
 
   // 検索ハンドラー
-  const handleSearch = (term) => {
+  const handleSearch = (term: string, regex: boolean) => {
     setSearchTerm(term);
+    setUseRegex(regex);
   };
 
   // タグ選択ハンドラー
-  const handleTagSelect = (tag) => {
+  const handleTagSelect = (tag: string) => {
     setSelectedTags(prev => 
       prev.includes(tag)
         ? prev.filter(t => t !== tag)
@@ -86,8 +104,8 @@ export default function ClientHome() {
         <SearchBar onSearch={handleSearch} />
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div className="md:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-1">
           <TagFilter 
             tags={availableTags} 
             selectedTags={selectedTags} 
@@ -95,7 +113,7 @@ export default function ClientHome() {
           />
         </div>
         
-        <div className="md:col-span-3">
+        <div className="lg:col-span-3">
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>

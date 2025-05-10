@@ -68,23 +68,23 @@ export default function KnowledgeForm() {
         }),
       });
 
-      const responseData = await response.text();
-      
       if (!response.ok) {
-        console.error('API Error:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: responseData
-        });
-        throw new Error(`API Error: ${response.status} ${responseData}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'ナレッジの保存に失敗しました');
       }
+
+      const { slug } = await response.json();
 
       toast({
         title: '投稿完了',
         description: 'ナレッジを投稿しました',
       });
 
-      router.push('/');
+      // 一覧ページに戻る前に少し待機（トーストメッセージを見せるため）
+      setTimeout(() => {
+        router.push('/');
+        router.refresh(); // 一覧を更新
+      }, 1000);
     } catch (error) {
       console.error('投稿エラー:', error);
       toast({

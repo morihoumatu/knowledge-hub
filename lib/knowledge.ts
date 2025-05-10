@@ -1,127 +1,140 @@
-import path from 'path';
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, accessSync } from 'fs';
+import { join } from 'path';
+import matter from 'gray-matter';
 import { KnowledgeItem } from './types';
 
-// サンプルデータ（実際のアプリケーションでは API を使用してデータを取得）
-const sampleKnowledge: KnowledgeItem[] = [
-  {
-    slug: 'git基礎',
-    title: 'Gitの基本',
-    description: 'バージョン管理システムGitの基本的な使い方について解説します',
-    tags: ['Git', 'バージョン管理', 'コマンドライン'],
-    created: '2024-05-10T00:00:00.000Z',
-    updated: '2024-05-15T00:00:00.000Z',
-    content: `
-# Gitの基本
-
-## はじめに
-
-Gitは分散型バージョン管理システムで、ソフトウェア開発において最も広く使われているツールの一つです。このドキュメントでは、Gitの基本的な概念と一般的なコマンドについて説明します。
-
-## 基本コマンド
-
-### リポジトリの初期化
-
-新しいGitリポジトリを作成するには：
-
-\`\`\`bash
-git init
-\`\`\`
-
-### 変更のステージング
-
-ファイルの変更をステージングエリアに追加するには：
-
-\`\`\`bash
-git add <ファイル名>
-\`\`\`
-
-すべての変更を追加するには：
-
-\`\`\`bash
-git add .
-\`\`\`
-
-### コミット
-
-変更を記録（コミット）するには：
-
-\`\`\`bash
-git commit -m "コミットメッセージ"
-\`\`\`
-
-### リモートリポジトリの操作
-
-リモートリポジトリを追加するには：
-
-\`\`\`bash
-git remote add origin <リポジトリURL>
-\`\`\`
-
-変更をプッシュするには：
-
-\`\`\`bash
-git push origin <ブランチ名>
-\`\`\`
-
-リモートの変更を取得するには：
-
-\`\`\`bash
-git pull origin <ブランチ名>
-\`\`\`
-
-## まとめ
-
-Gitは強力なバージョン管理ツールであり、多くのコマンドとオプションがあります。このドキュメントでは基本的なコマンドのみを紹介しましたが、実務では他にも多くの機能を活用することができます。
-`
-  },
-  {
-    slug: 'PostgreSQLの導入',
-    title: 'PostgreSQLの導入',
-    description: 'PostgreSQLデータベースの基本的なセットアップと使い方',
-    tags: ['PostgreSQL', 'データベース', 'SQL', 'バックエンド'],
-    created: '2024-05-12T00:00:00.000Z',
-    content: `
-# PostgreSQLの導入方法
-
-## はじめに
-
-PostgreSQLは、高度な機能を持つオープンソースのリレーショナルデータベース管理システム（RDBMS）です。このドキュメントでは、PostgreSQLの基本的なインストール方法と初期設定について解説します。
-
-## インストール
-
-### Ubuntuの場合
-
-\`\`\`bash
-sudo apt update
-sudo apt install postgresql postgresql-contrib
-\`\`\`
-
-### macOSの場合（Homebrewを使用）
-
-\`\`\`bash
-brew install postgresql
-\`\`\`
-
-### Windowsの場合
-
-1. [PostgreSQL公式ウェブサイト](https://www.postgresql.org/download/windows/)からインストーラーをダウンロード
-2. インストーラーを実行し、画面の指示に従う
-
-## まとめ
-
-PostgreSQLは強力で柔軟なデータベース管理システムであり、多くのアプリケーションで利用されています。基本的なインストールと設定を行えば、すぐに使い始めることができます。
-`
-  }
-];
+// Markdownファイルが格納されるディレクトリパス
+const KNOWLEDGE_DIRECTORY = join(process.cwd(), 'docs/markdown');
 
 // すべてのナレッジアイテムを取得する関数
 export async function getAllKnowledgeItems(): Promise<KnowledgeItem[]> {
-  return sampleKnowledge;
+  try {
+    // docs/markdown ディレクトリが存在しない場合は作成
+    try {
+      accessSync(KNOWLEDGE_DIRECTORY);
+    } catch {
+      mkdirSync(KNOWLEDGE_DIRECTORY, { recursive: true });
+    }
+
+    // ディレクトリ内のMarkdownファイルの一覧を取得
+    const fileNames = readdirSync(KNOWLEDGE_DIRECTORY);
+    const markdownFiles = fileNames.filter(fileName => fileName.endsWith('.md'));
+
+    // 各ファイルを読み込んでメタデータと内容を抽出
+    const knowledgeItems = markdownFiles.map((fileName) => {
+      const slug = fileName.replace(/\.md$/, '');
+      const filePath = join(KNOWLEDGE_DIRECTORY, fileName);
+      
+      // ファイルの内容を読み込む
+      const fileContents = readFileSync(filePath, 'utf8');
+      
+      // gray-matter を使用してfront matterとコンテンツを分離
+      const { data, content } = matter(fileContents);
+      
+      // ナレッジアイテムを作成
+      const knowledgeItem: KnowledgeItem = {
+        slug,
+        title: data.title || slug,
+        tags: Array.isArray(data.tags) ? data.tags : data.tags?.split(',').map(tag => tag.trim()) || [],
+        created: data.created ? new Date(data.created).toISOString() : new Date().toISOString(),
+        updated: data.updated ? new Date(data.updated).toISOString() : undefined,
+        description: data.description || '',
+        content: content,
+      };
+      
+      return knowledgeItem;
+    });
+
+    // 作成日の降順でソート（新しいものが先頭に）
+    return knowledgeItems.sort((a, b) => {
+      return new Date(b.created).getTime() - new Date(a.created).getTime();
+    });
+  } catch (error) {
+    console.error('ナレッジアイテムの取得中にエラーが発生しました:', error);
+    return [];
+  }
 }
 
 // スラッグからナレッジアイテムを取得する関数
 export async function getKnowledgeBySlug(slug: string): Promise<KnowledgeItem | null> {
-  const decodedSlug = decodeURIComponent(slug);
-  const item = sampleKnowledge.find(item => item.slug === decodedSlug);
-  return item || null;
+  try {
+    const filePath = join(KNOWLEDGE_DIRECTORY, `${slug}.md`);
+    
+    // ファイルが存在しない場合はnullを返す
+    try {
+      accessSync(filePath);
+    } catch {
+      return null;
+    }
+    
+    // ファイルの内容を読み込む
+    const fileContents = readFileSync(filePath, 'utf8');
+    
+    // gray-matter を使用してfront matterとコンテンツを分離
+    const { data, content } = matter(fileContents);
+    
+    // ナレッジアイテムを作成
+    const knowledgeItem: KnowledgeItem = {
+      slug,
+      title: data.title || slug,
+      tags: Array.isArray(data.tags) ? data.tags : data.tags?.split(',').map(tag => tag.trim()) || [],
+      created: data.created ? new Date(data.created).toISOString() : new Date().toISOString(),
+      updated: data.updated ? new Date(data.updated).toISOString() : undefined,
+      description: data.description || '',
+      content: content,
+    };
+    
+    return knowledgeItem;
+  } catch (error) {
+    console.error(`スラッグ "${slug}" のナレッジアイテムの取得中にエラーが発生しました:`, error);
+    return null;
+  }
+}
+
+// ナレッジを保存する関数
+export async function saveKnowledge(data: {
+  title: string;
+  content: string;
+  tags: string[];
+  description?: string;
+  created: string;
+}): Promise<{ slug: string }> {
+  const { title, content, tags, description, created } = data;
+
+  // スラグを生成（日本語を含むタイトルをURLフレンドリーに変換）
+  const slug = title
+    .toLowerCase()
+    .replace(/[\s\u3000]+/g, '-')
+    .replace(/[^\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  // 年月のディレクトリパスを生成
+  const date = new Date(created);
+  const yearDir = date.getFullYear().toString();
+  const monthDir = (date.getMonth() + 1).toString().padStart(2, '0');
+  const dirPath = join(KNOWLEDGE_DIRECTORY, yearDir, monthDir);
+
+  // ディレクトリを作成
+  mkdirSync(dirPath, { recursive: true });
+
+  // ファイル名を生成（スラグ + タイムスタンプ）
+  const timestamp = date.getTime();
+  const fileName = `${slug}-${timestamp}.md`;
+  const filePath = join(dirPath, fileName);
+
+  // frontmatterを生成
+  const frontmatter = `---
+title: ${title}
+description: ${description || ''}
+tags: [${tags.join(', ')}]
+created: ${created}
+---
+
+${content}`;
+
+  // ファイルを保存
+  writeFileSync(filePath, frontmatter, 'utf8');
+
+  return { slug: `${yearDir}/${monthDir}/${slug}-${timestamp}` };
 }

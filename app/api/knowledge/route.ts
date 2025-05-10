@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Ensure docs directory exists
@@ -25,47 +27,25 @@ export async function POST(request: Request) {
 
     if (!title || !content) {
       return NextResponse.json(
-        { error: 'Title and content are required' },
+        { error: 'タイトルと本文は必須です' },
         { status: 400 }
       );
     }
 
-    // Create docs directory if it doesn't exist
-    await fs.mkdir('docs', { recursive: true });
-
-    // Create a URL-friendly slug from the title
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-
-    // Create a unique filename with timestamp to avoid conflicts
-    const timestamp = new Date().getTime();
-    const filename = `${slug}-${timestamp}.md`;
-    const filePath = path.join('docs', filename);
-
-    // Create the markdown content with frontmatter
-    const frontmatter = `---
-title: ${title}
-description: ${description || ''}
-tags: ${Array.isArray(tags) ? tags.join(', ') : tags}
-created: ${created}
----
-
-${content}`;
-
-    // Write the file
-    await fs.writeFile(filePath, frontmatter, 'utf-8');
-
-    return NextResponse.json({ 
-      success: true, 
-      filename,
-      slug 
+    // ナレッジを保存
+    const { slug } = await saveKnowledge({
+      title,
+      content,
+      tags: Array.isArray(tags) ? tags : tags.split(',').map((tag: string) => tag.trim()),
+      description,
+      created,
     });
+
+    return NextResponse.json({ success: true, slug });
   } catch (error) {
-    console.error('Error saving knowledge:', error);
+    console.error('ナレッジの保存中にエラーが発生しました:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to save knowledge article' }, 
+      { error: error instanceof Error ? error.message : 'ナレッジの保存に失敗しました' },
       { status: 500 }
     );
   }
