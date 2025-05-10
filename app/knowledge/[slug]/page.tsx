@@ -23,6 +23,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
+// 静的パスの生成
+export async function generateStaticParams() {
+  const items = await getAllKnowledgeItems();
+  return items.map((item) => ({
+    slug: item.slug,
+  }));
+}
+
 export default async function KnowledgePage({ params }: { params: { slug: string } }) {
   const knowledge = await getKnowledgeBySlug(params.slug);
   
